@@ -91,3 +91,43 @@ describe('POST /api/children/:id/gerar-token', () => {
     expect(res.body.token).toMatch(/^[A-F0-9]{32}$/);
   });
 });
+
+describe('GET /api/album/:token (public endpoint)', () => {
+  let childToken;
+
+  beforeEach(async () => {
+    // Clean up and create fresh child with token for each test
+    await Child.deleteMany({});
+    const create = await request(app).post('/api/children')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ nome: 'Criança Album', dataNascimento: '2017-05-20' });
+    const id = create.body.crianca._id;
+    const tokenRes = await request(app).post(`/api/children/${id}/gerar-token`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    childToken = tokenRes.body.token;
+  });
+
+  it('should return child album for valid token (no auth required)', async () => {
+    const res = await request(app).get(`/api/album/${childToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.crianca.nome).toBe('Criança Album');
+    expect(Array.isArray(res.body.midias)).toBe(true);
+  });
+
+  it('should return 404 for unknown token', async () => {
+    const res = await request(app).get('/api/album/AAAABBBBCCCCDDDDAAAABBBBCCCCDDDD');
+    expect(res.status).toBe(404);
+  });
+
+  it('should return 400 for invalid token length', async () => {
+    const res = await request(app).get('/api/album/SHORT');
+    expect(res.status).toBe(400);
+  });
+
+  it('should not require Authorization header', async () => {
+    const res = await request(app)
+      .get(`/api/album/${childToken}`)
+      // deliberately no Authorization header
+    expect(res.status).toBe(200);
+  });
+});
