@@ -1,3 +1,129 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { authMiddleware } = require('../middleware/auth');
+const Log = require('../models/Log');
+
 const router = express.Router();
+
+// Registrar novo admin
+router.post('/registrar', [
+  body('nome').trim().isLength({ min: 3 }),
+  body('email').isEmail().normalizeEmail(),
+  body('senha').isLength({ min: 6 }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { nome, email, senha, telefone } = req.body;
+
+    const usuarioExistente = await User.findOne({ email });
+    if (usuarioExistente) {
+      return res.status(400).json({ error: 'Email já cadastrado' });
+    }
+
+    const novoUsuario = new User({
+      nome,
+      email,
+      senha,
+      telefone,
+      role: 'admin',
+      permissoes: ['criar_crianca', 'gerenciar_midia'],
+    });
+
+    await novoUsuario.save();
+
+    await Log.create({
+      usuarioId: null,
+      acao: 'CRIAR_ADMIN',
+      recursoId: novoUsuario._id,
+      status: 'sucesso',
+      ipAddress: req.ip,
+    });
+
+    res.status(201).json({
+      message: 'Admin criado com sucesso',
+      usuario: novoUsuario.toJSON(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Login
+router.post('/login', [
+  body('email').isEmail(),
+  body('senha').isLength({ min: 6 }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, senha } = req.body;
+
+    const usuario = await User.findOne({ email }).select('+senha');
+    if (!usuario) {
+      return res.status(400).json({ error: 'Email ou senha incorretos' });
+    }
+
+    const senhaValida = await usuario.compararSenha(senha);
+    if (!senhaValida) {
+      return res.status(400).json({ error: 'Email ou senha incorretos' });
+    }
+
+    const token = jwt.sign(
+      { id: usuario._id },
+      process.env.JWT_SECRET || 'seu-secret-key',
+      { expiresIn: '30d' }
+    );
+
+    usuario.dataUltimoAcesso = new Date();
+    await usuario.save();
+
+    await Log.create({
+      usuarioId: usuario._id,
+      acao: 'LOGIN',
+      status: 'sucesso',
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      message: 'Login realizado com sucesso',
+      token,
+      usuario: usuario.toJSON(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Perfil
+router.get('/perfil', authMiddleware, (req, res) => {
+  res.json({
+    usuario: req.user.toJSON(),
+  });
+});
+
+// Logout
+router.post('/logout', authMiddleware, async (req, res) => {
+  try {
+    await Log.create({
+      usuarioId: req.user._id,
+      acao: 'LOGOUT',
+      status: 'sucesso',
+      ipAddress: req.ip,
+    });
+
+    res.json({ message: 'Logout realizado com sucesso' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

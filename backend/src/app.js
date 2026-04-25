@@ -13,7 +13,6 @@ const logsRoutes = require('./routes/logs.routes');
 const albumRoutes = require('./routes/album.routes');
 
 const { errorHandler } = require('./middleware/errorHandler');
-const { connectDatabase } = require('./config/database');
 
 const app = express();
 
@@ -39,9 +38,6 @@ app.use('/api/', limiter);
 // Body parser
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-// Conectar ao banco de dados
-connectDatabase();
 
 // Rotas
 app.use('/api/auth', authRoutes);
