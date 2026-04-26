@@ -284,7 +284,7 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
     }
 
     if (showEditDialog) {
-        var editDataExibicao by remember { mutableStateOf(formatarDataParaExibicao(editData)) }
+        var editDataExibicao by remember(editData) { mutableStateOf(formatarDataParaExibicao(editData)) }
         val calEdit = Calendar.getInstance()
         val editDatePicker = DatePickerDialog(
             context,
