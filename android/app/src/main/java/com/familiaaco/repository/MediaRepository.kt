@@ -3,6 +3,7 @@ package com.familiaaco.repository
 import android.content.Context
 import android.webkit.MimeTypeMap
 import com.familiaaco.data.models.AlbumResponse
+import com.familiaaco.data.models.ListaMidiaResponse
 import com.familiaaco.data.models.MidiaDTO
 import com.familiaaco.network.ApiClient
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,16 +19,19 @@ class MediaRepository(private val context: Context) {
         criancaId: String,
         file: File,
         descricao: String,
-        dataMomento: String
+        dataMomento: String,
+        thumbnailFile: File? = null
     ): Result<MidiaDTO> {
         return try {
             val ext = file.extension.lowercase()
             val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
-            val requestBody = file.asRequestBody(mime.toMediaType())
-            val filePart = MultipartBody.Part.createFormData("file", file.name, requestBody)
+            val filePart = MultipartBody.Part.createFormData("file", file.name, file.asRequestBody(mime.toMediaType()))
             val descricaoPart = descricao.toRequestBody("text/plain".toMediaType())
             val dataPart = dataMomento.toRequestBody("text/plain".toMediaType())
-            val response = apiService.uploadMidia(criancaId, filePart, descricaoPart, dataPart)
+            val thumbnailPart = thumbnailFile?.let {
+                MultipartBody.Part.createFormData("thumbnail", it.name, it.asRequestBody("image/jpeg".toMediaType()))
+            }
+            val response = apiService.uploadMidia(criancaId, filePart, descricaoPart, dataPart, thumbnailPart)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.midia)
             } else {
@@ -38,11 +42,17 @@ class MediaRepository(private val context: Context) {
         }
     }
 
-    suspend fun listarMidia(criancaId: String, tipo: String? = null, ordem: String? = null): Result<List<MidiaDTO>> {
+    suspend fun listarMidia(
+        criancaId: String,
+        tipo: String? = null,
+        ordem: String? = null,
+        page: Int = 0,
+        limit: Int = 30
+    ): Result<ListaMidiaResponse> {
         return try {
-            val response = apiService.listarMidia(criancaId, tipo, ordem)
+            val response = apiService.listarMidia(criancaId, tipo, ordem, page, limit)
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!.midias)
+                Result.success(response.body()!!)
             } else {
                 Result.failure(Exception("Erro ${response.code()}: Falha ao listar mídia"))
             }
@@ -74,9 +84,9 @@ class MediaRepository(private val context: Context) {
         }
     }
 
-    suspend fun getAlbumByToken(token: String): Result<AlbumResponse> {
+    suspend fun getAlbumByToken(token: String, page: Int = 0, limit: Int = 30): Result<AlbumResponse> {
         return try {
-            val response = apiService.getAlbumByToken(token)
+            val response = apiService.getAlbumByToken(token, page, limit)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {

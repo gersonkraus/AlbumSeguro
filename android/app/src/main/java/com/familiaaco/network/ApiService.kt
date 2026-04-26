@@ -65,14 +65,17 @@ interface ApiService {
         @Path("criancaId") criancaId: String,
         @Part file: MultipartBody.Part,
         @Part("descricao") descricao: RequestBody,
-        @Part("dataMomento") dataMomento: RequestBody
+        @Part("dataMomento") dataMomento: RequestBody,
+        @Part thumbnail: MultipartBody.Part? = null
     ): Response<MidiaResponse>
 
     @GET("media/{criancaId}")
     suspend fun listarMidia(
         @Path("criancaId") criancaId: String,
         @Query("tipo") tipo: String? = null,
-        @Query("ordem") ordem: String? = null
+        @Query("ordem") ordem: String? = null,
+        @Query("page") page: Int = 0,
+        @Query("limit") limit: Int = 30
     ): Response<ListaMidiaResponse>
 
     @DELETE("media/{midiaId}")
@@ -109,5 +112,9 @@ interface ApiService {
 
     // Album (public — no auth needed)
     @GET("album/{token}")
-    suspend fun getAlbumByToken(@Path("token") token: String): Response<AlbumResponse>
+    suspend fun getAlbumByToken(
+        @Path("token") token: String,
+        @Query("page") page: Int = 0,
+        @Query("limit") limit: Int = 30
+    ): Response<AlbumResponse>
 }

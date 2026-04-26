@@ -91,7 +91,9 @@ data class MidiaDTO(
 ) : Serializable
 
 data class ListaMidiaResponse(
-    val midias: List<MidiaDTO>
+    val midias: List<MidiaDTO>,
+    val total: Int = 0,
+    val hasMore: Boolean = false
 ) : Serializable
 
 data class EditarMidiaRequest(
@@ -171,7 +173,9 @@ data class ListaLogsResponse(
 // Album (public child view)
 data class AlbumResponse(
     val crianca: CriancaPublicaDTO,
-    val midias: List<MidiaDTO>
+    val midias: List<MidiaDTO>,
+    val total: Int = 0,
+    val hasMore: Boolean = false
 ) : Serializable
 
 data class CriancaPublicaDTO(
