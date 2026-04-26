@@ -23,7 +23,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -76,7 +75,6 @@ private fun PhotoPage(
             // ou single-touch com zoom ativo — nunca bloqueia o swipe do pager
             .pointerInput(scale, offset) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
                     var currentScale = scale
                     var currentOffset = offset
                     var multiTouchStarted = false
