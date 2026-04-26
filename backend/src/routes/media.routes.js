@@ -1,10 +1,45 @@
 const express = require('express');
 const multer = require('multer');
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+const ffmpeg = require('fluent-ffmpeg');
 const Media = require('../models/Media');
 const Child = require('../models/Child');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { storageService } = require('../services/storageService');
 const Log = require('../models/Log');
+
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+async function gerarThumbnailComFfmpeg(buffer, criancaId) {
+  const tmpVideo = path.join(os.tmpdir(), `vid_${Date.now()}.mp4`);
+  const tmpThumb = path.join(os.tmpdir(), `thumb_${Date.now()}.jpg`);
+  try {
+    fs.writeFileSync(tmpVideo, buffer);
+    await new Promise((resolve, reject) => {
+      ffmpeg(tmpVideo)
+        .screenshots({
+          timestamps: ['00:00:01'],
+          filename: path.basename(tmpThumb),
+          folder: path.dirname(tmpThumb),
+        })
+        .on('end', resolve)
+        .on('error', reject);
+    });
+    const thumbBuffer = fs.readFileSync(tmpThumb);
+    return await storageService.uploadArquivo(
+      { buffer: thumbBuffer, mimetype: 'image/jpeg', originalname: 'thumbnail.jpg' },
+      `criancas/${criancaId}/thumbs/${Date.now()}_thumb.jpg`
+    );
+  } catch (_) {
+    return null;
+  } finally {
+    try { fs.unlinkSync(tmpVideo); } catch (_) {}
+    try { fs.unlinkSync(tmpThumb); } catch (_) {}
+  }
+}
 
 const router = express.Router();
 
@@ -24,10 +59,20 @@ const upload = multer({
 });
 
 // FAZER UPLOAD de mídia
-router.post('/:criancaId/upload', authMiddleware, adminMiddleware, upload.single('file'), async (req, res) => {
+router.post('/:criancaId/upload', authMiddleware, adminMiddleware, upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 },
+]), async (req, res) => {
   try {
     const { criancaId } = req.params;
     const { descricao, dataMomento } = req.body;
+
+    const videoFile = req.files['file']?.[0];
+    const thumbnailFile = req.files['thumbnail']?.[0];
+
+    if (!videoFile) {
+      return res.status(400).json({ error: 'Arquivo não enviado' });
+    }
 
     const crianca = await Child.findById(criancaId);
     if (!crianca) {
@@ -35,23 +80,37 @@ router.post('/:criancaId/upload', authMiddleware, adminMiddleware, upload.single
     }
 
     const urlDownload = await storageService.uploadArquivo(
-      req.file,
-      `criancas/${criancaId}/${Date.now()}_${req.file.originalname}`
+      videoFile,
+      `criancas/${criancaId}/${Date.now()}_${videoFile.originalname}`
     );
 
-    const mimeType = (req.file.mimetype || '').toLowerCase();
-    const nomeArquivo = (req.file.originalname || '').toLowerCase();
+    const mimeType = (videoFile.mimetype || '').toLowerCase();
+    const nomeArquivo = (videoFile.originalname || '').toLowerCase();
     const isVideoMime = mimeType.startsWith('video/');
     const isVideoByExt = /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(nomeArquivo);
+    const isVideo = isVideoMime || isVideoByExt;
+
+    let thumbnailUrl = null;
+    if (isVideo) {
+      if (thumbnailFile) {
+        thumbnailUrl = await storageService.uploadArquivo(
+          thumbnailFile,
+          `criancas/${criancaId}/thumbs/${Date.now()}_thumb.jpg`
+        );
+      } else {
+        thumbnailUrl = await gerarThumbnailComFfmpeg(videoFile.buffer, criancaId);
+      }
+    }
 
     const novaMidia = new Media({
       criancaId,
-      tipo: (isVideoMime || isVideoByExt) ? 'video' : 'foto',
+      tipo: isVideo ? 'video' : 'foto',
       url: urlDownload,
+      thumbnailUrl,
       descricao,
       dataMomento: dataMomento || new Date(),
       cadastroPor: req.user._id,
-      tamanho: req.file.size,
+      tamanho: videoFile.size,
     });
 
     await novaMidia.save();
@@ -82,7 +141,9 @@ router.post('/:criancaId/upload', authMiddleware, adminMiddleware, upload.single
 router.get('/:criancaId', authMiddleware, async (req, res) => {
   try {
     const { criancaId } = req.params;
-    const { tipo, ordem = 'desc', dataInicio, dataFim } = req.query;
+    const { tipo, ordem = 'desc', dataInicio, dataFim, page = 0, limit = 30 } = req.query;
+    const pageNum = Math.max(0, parseInt(page) || 0);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 30));
 
     const crianca = await Child.findById(criancaId);
     if (!crianca) {
@@ -100,11 +161,14 @@ router.get('/:criancaId', authMiddleware, async (req, res) => {
     const sortMap = { asc: { dataMomento: 1 }, desc: { dataMomento: -1 }, tamanho: { tamanho: -1 } };
     const sort = sortMap[ordem] || { dataMomento: -1 };
 
+    const total = await Media.countDocuments(filtro);
     const midias = await Media.find(filtro)
       .populate('cadastroPor', 'nome')
-      .sort(sort);
+      .sort(sort)
+      .skip(pageNum * limitNum)
+      .limit(limitNum);
 
-    res.json({ midias });
+    res.json({ midias, total, hasMore: (pageNum + 1) * limitNum < total });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

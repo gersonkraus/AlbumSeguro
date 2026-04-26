@@ -28,12 +28,21 @@ router.get('/:token', async (req, res) => {
       return res.status(403).json({ error: 'Link de acesso expirado. Solicite um novo link ao responsável.' });
     }
 
-    const midias = await Media.find({
+    const { page = 0, limit = 30 } = req.query;
+    const pageNum = Math.max(0, parseInt(page) || 0);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 30));
+
+    const filtroMidia = {
       criancaId: crianca._id,
       privacidade: { $in: ['apenas_crianca', 'admins_e_crianca'] },
-    })
+    };
+
+    const total = await Media.countDocuments(filtroMidia);
+    const midias = await Media.find(filtroMidia)
       .select('-cadastroPor')
-      .sort({ dataMomento: -1 });
+      .sort({ dataMomento: -1 })
+      .skip(pageNum * limitNum)
+      .limit(limitNum);
 
     await Log.create({
       usuarioId: null,
@@ -51,6 +60,8 @@ router.get('/:token', async (req, res) => {
         descricao: crianca.descricao,
       },
       midias,
+      total,
+      hasMore: (pageNum + 1) * limitNum < total,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
