@@ -24,6 +24,10 @@ router.get('/:token', async (req, res) => {
       return res.status(404).json({ error: 'Álbum não encontrado' });
     }
 
+    if (crianca.tokenExpiracao && new Date() > crianca.tokenExpiracao) {
+      return res.status(403).json({ error: 'Link de acesso expirado. Solicite um novo link ao responsável.' });
+    }
+
     const midias = await Media.find({
       criancaId: crianca._id,
       privacidade: { $in: ['apenas_crianca', 'admins_e_crianca'] },

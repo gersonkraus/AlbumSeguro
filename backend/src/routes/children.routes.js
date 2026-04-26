@@ -1,9 +1,12 @@
 const express = require('express');
+const multer = require('multer');
 const { body, validationResult } = require('express-validator');
 const Child = require('../models/Child');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { gerarTokenAcesso } = require('../utils/helpers');
 const Log = require('../models/Log');
+const { storageService } = require('../services/storageService');
+const uploadFoto = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = express.Router();
 
@@ -136,6 +139,26 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// FOTO DE PERFIL DA CRIANÇA
+router.post('/:id/foto', authMiddleware, adminMiddleware, uploadFoto.single('foto'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma foto enviada' });
+    const crianca = await Child.findById(req.params.id);
+    if (!crianca) return res.status(404).json({ error: 'Criança não encontrada' });
+
+    const url = await storageService.uploadArquivo(
+      req.file,
+      `perfis/${req.params.id}/foto_${Date.now()}`
+    );
+    crianca.fotoPerfil = url;
+    await crianca.save();
+
+    res.json({ message: 'Foto atualizada', fotoPerfil: url });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GERAR TOKEN DE ACESSO
 router.post('/:id/gerar-token', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -145,7 +168,9 @@ router.post('/:id/gerar-token', authMiddleware, adminMiddleware, async (req, res
       return res.status(404).json({ error: 'Criança não encontrada' });
     }
 
+    const diasValidade = parseInt(req.body.diasValidade) || 30;
     crianca.tokenAcesso = gerarTokenAcesso();
+    crianca.tokenExpiracao = new Date(Date.now() + diasValidade * 24 * 60 * 60 * 1000);
     await crianca.save();
 
     await Log.create({

@@ -21,6 +21,10 @@ const childSchema = new mongoose.Schema({
     sparse: true,
     default: null,
   },
+  tokenExpiracao: {
+    type: Date,
+    default: null,
+  },
   ativo: {
     type: Boolean,
     default: true,

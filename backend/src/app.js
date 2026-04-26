@@ -11,6 +11,7 @@ const mediaRoutes = require('./routes/media.routes');
 const adminRoutes = require('./routes/admin.routes');
 const logsRoutes = require('./routes/logs.routes');
 const albumRoutes = require('./routes/album.routes');
+const publicRoutes = require('./routes/public.routes');
 
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -21,10 +22,12 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('combined'));
 
-// CORS
+// CORS - Permitir todas as origens em desenvolvimento
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Rate limiting
@@ -46,6 +49,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/album', albumRoutes);
+app.use('/api/public', publicRoutes); // Sem autenticação
 
 // Health check
 app.get('/health', (req, res) => {

@@ -13,12 +13,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (req, file, cb) => {
-    const tiposPermitidos = /jpeg|jpg|png|mp4|mov|avi/;
-    const ext = tiposPermitidos.test(file.mimetype);
-    if (ext) {
+    const tiposPermitidos = /jpeg|jpg|png|gif|webp|heic|heif|mp4|mov|avi|mkv|quicktime|octet-stream/;
+    const permitido = tiposPermitidos.test(file.mimetype);
+    if (permitido) {
       return cb(null, true);
     } else {
-      return cb(new Error('Tipo de arquivo não permitido'));
+      return cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}`));
     }
   },
 });
@@ -77,17 +77,44 @@ router.post('/:criancaId/upload', authMiddleware, adminMiddleware, upload.single
 router.get('/:criancaId', authMiddleware, async (req, res) => {
   try {
     const { criancaId } = req.params;
+    const { tipo, ordem = 'desc', dataInicio, dataFim } = req.query;
 
     const crianca = await Child.findById(criancaId);
     if (!crianca) {
       return res.status(404).json({ error: 'Criança não encontrada' });
     }
 
-    const midias = await Media.find({ criancaId })
+    const filtro = { criancaId };
+    if (tipo && tipo !== 'todos') filtro.tipo = tipo;
+    if (dataInicio || dataFim) {
+      filtro.dataMomento = {};
+      if (dataInicio) filtro.dataMomento.$gte = new Date(dataInicio);
+      if (dataFim) filtro.dataMomento.$lte = new Date(dataFim);
+    }
+
+    const sortMap = { asc: { dataMomento: 1 }, desc: { dataMomento: -1 }, tamanho: { tamanho: -1 } };
+    const sort = sortMap[ordem] || { dataMomento: -1 };
+
+    const midias = await Media.find(filtro)
       .populate('cadastroPor', 'nome')
-      .sort({ dataMomento: -1 });
+      .sort(sort);
 
     res.json({ midias });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// EDITAR mídia (descrição)
+router.put('/:midiaId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const midia = await Media.findByIdAndUpdate(
+      req.params.midiaId,
+      { descricao: req.body.descricao },
+      { new: true }
+    );
+    if (!midia) return res.status(404).json({ error: 'Mídia não encontrada' });
+    res.json({ message: 'Mídia atualizada', midia });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
