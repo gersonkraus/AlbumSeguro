@@ -2,10 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const { body, validationResult } = require('express-validator');
 const Child = require('../models/Child');
+const Log = require('../models/Log');
+const AppConfig = require('../models/AppConfig');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { gerarTokenAcesso } = require('../utils/helpers');
-const Log = require('../models/Log');
-const { storageService } = require('../services/storageService');
+const storageService = require('../services/storageService');
 const uploadFoto = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = express.Router();
@@ -74,8 +75,7 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const crianca = await Child.findById(req.params.id)
-      .populate('criadoPor', 'nome email')
-      .populate('historicoPessoas', 'nome email');
+      .populate('criadoPor', 'nome email');
 
     if (!crianca) {
       return res.status(404).json({ error: 'Criança não encontrada' });
@@ -188,9 +188,16 @@ router.post('/:id/gerar-token', authMiddleware, adminMiddleware, async (req, res
       ipAddress: req.ip,
     });
 
+    const config = await AppConfig.findOne();
+    const childAlbumBaseUrl = config?.childAlbumBaseUrl?.trim() || '';
+    const childAlbumUrl = childAlbumBaseUrl
+      ? `${childAlbumBaseUrl.replace(/\/+$/, '')}/album/${crianca.tokenAcesso}`
+      : null;
+
     res.json({
       message: 'Token gerado com sucesso',
       token: crianca.tokenAcesso,
+      childAlbumUrl,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

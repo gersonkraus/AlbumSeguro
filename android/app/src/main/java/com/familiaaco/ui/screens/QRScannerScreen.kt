@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.familiaaco.ui.utils.extrairTokenDeEntrada
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -64,10 +65,11 @@ fun QRScannerScreen(navController: NavController) {
                         imageProxy.image?.let { img ->
                             scanner.process(InputImage.fromMediaImage(img, imageProxy.imageInfo.rotationDegrees))
                                 .addOnSuccessListener { barcodes ->
-                                    barcodes.firstOrNull()?.rawValue?.trim()?.uppercase()?.let { raw ->
-                                        if (!scanned && raw.length == 32 && raw.all { it.isLetterOrDigit() }) {
+                                    barcodes.firstOrNull()?.rawValue?.let { rawValue ->
+                                        val token = extrairTokenDeEntrada(rawValue)
+                                        if (!scanned && !token.isNullOrBlank()) {
                                             scanned = true
-                                            navController.navigate("child_album/$raw") {
+                                            navController.navigate("child_album/$token") {
                                                 popUpTo("qr_scanner") { inclusive = true }
                                             }
                                         }

@@ -41,6 +41,18 @@ class TokenManager(context: Context) {
         return encryptedSharedPreferences.getString("user_role", null)
     }
 
+    fun saveChildToken(token: String) {
+        encryptedSharedPreferences.edit().putString("child_access_token", token).apply()
+    }
+
+    fun getChildToken(): String? {
+        return encryptedSharedPreferences.getString("child_access_token", null)
+    }
+
+    fun clearChildToken() {
+        encryptedSharedPreferences.edit().remove("child_access_token").apply()
+    }
+
     fun clearAll() {
         encryptedSharedPreferences.edit().clear().apply()
     }

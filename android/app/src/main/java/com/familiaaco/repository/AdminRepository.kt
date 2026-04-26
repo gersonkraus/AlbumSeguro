@@ -1,6 +1,8 @@
 package com.familiaaco.repository
 
 import android.content.Context
+import com.familiaaco.data.models.AppConfigDTO
+import com.familiaaco.data.models.AtualizarAppConfigRequest
 import com.familiaaco.data.models.EditarAdminRequest
 import com.familiaaco.data.models.RegistroRequest
 import com.familiaaco.data.models.UsuarioDTO
@@ -31,5 +33,17 @@ class AdminRepository(private val context: Context) {
         val r = apiService.deletarAdmin(id)
         if (r.isSuccessful) Result.success(Unit)
         else Result.failure(Exception("Erro ${r.code()}: Falha ao desativar admin"))
+    } catch (e: Exception) { Result.failure(e) }
+
+    suspend fun getAppConfig(): Result<AppConfigDTO> = try {
+        val r = apiService.getAppConfig()
+        if (r.isSuccessful && r.body() != null) Result.success(r.body()!!.config)
+        else Result.failure(Exception("Erro ${r.code()}: Falha ao carregar configuração"))
+    } catch (e: Exception) { Result.failure(e) }
+
+    suspend fun atualizarAppConfig(childAlbumBaseUrl: String): Result<AppConfigDTO> = try {
+        val r = apiService.atualizarAppConfig(AtualizarAppConfigRequest(childAlbumBaseUrl))
+        if (r.isSuccessful && r.body() != null) Result.success(r.body()!!.config)
+        else Result.failure(Exception("Erro ${r.code()}: Falha ao salvar configuração"))
     } catch (e: Exception) { Result.failure(e) }
 }

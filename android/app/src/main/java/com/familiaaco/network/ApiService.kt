@@ -97,6 +97,12 @@ interface ApiService {
     @DELETE("admin/{id}")
     suspend fun deletarAdmin(@Path("id") id: String): Response<Unit>
 
+    @GET("admin/config")
+    suspend fun getAppConfig(): Response<AppConfigResponse>
+
+    @PUT("admin/config")
+    suspend fun atualizarAppConfig(@Body request: AtualizarAppConfigRequest): Response<AppConfigResponse>
+
     // Logs
     @GET("logs/")
     suspend fun listarLogs(): Response<ListaLogsResponse>

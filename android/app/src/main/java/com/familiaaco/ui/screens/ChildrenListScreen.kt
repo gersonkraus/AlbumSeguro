@@ -92,7 +92,10 @@ fun ChildrenListScreen(navController: NavController) {
 fun CriancaCard(crianca: CriancaDTO, navController: NavController) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { navController.navigate("child_detail/${crianca._id}") },
+        onClick = {
+            val nomeEncoded = java.net.URLEncoder.encode(crianca.nome, "UTF-8")
+            navController.navigate("child_detail/${crianca._id}?nome=$nomeEncoded")
+        },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
     ) {

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.familiaaco.data.models.CriancaDTO
+import com.familiaaco.data.models.TokenResponse
 import com.familiaaco.repository.ChildrenRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +26,7 @@ class ChildrenViewModel(context: Context) : ViewModel() {
                 .onSuccess { crianca ->
                     _criancaAtual.value = crianca
                     if (!crianca.tokenAcesso.isNullOrBlank()) {
-                        _tokenState.value = TokenState.Success(crianca.tokenAcesso)
+                        _tokenState.value = TokenState.Success(crianca.tokenAcesso, null)
                     }
                 }
                 .onFailure {
@@ -82,7 +83,7 @@ class ChildrenViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             _tokenState.value = TokenState.Loading
             childrenRepository.gerarToken(criancaId, diasValidade)
-                .onSuccess { _tokenState.value = TokenState.Success(it) }
+                .onSuccess { _tokenState.value = TokenState.Success(it.token, it.childAlbumUrl) }
                 .onFailure { _tokenState.value = TokenState.Error(it.message ?: "Erro") }
         }
     }
@@ -97,7 +98,7 @@ class ChildrenViewModel(context: Context) : ViewModel() {
     sealed class TokenState {
         object Idle : TokenState()
         object Loading : TokenState()
-        data class Success(val token: String) : TokenState()
+        data class Success(val token: String, val childAlbumUrl: String?) : TokenState()
         data class Error(val message: String) : TokenState()
     }
 }

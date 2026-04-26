@@ -3,6 +3,8 @@ package com.familiaaco.ui.screens
 import android.app.DatePickerDialog
 import android.app.DownloadManager
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
 import android.webkit.MimeTypeMap
@@ -32,11 +34,51 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.core.graphics.set
+import com.familiaaco.data.models.MidiaDTO
 import com.familiaaco.ui.utils.formatarDataParaExibicao
 import com.familiaaco.viewmodel.ChildrenViewModel
 import com.familiaaco.viewmodel.MediaViewModel
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.common.BitMatrix
 import java.text.SimpleDateFormat
 import java.util.*
+
+private fun gerarQRCodeBitmap(conteudo: String, tamanho: Int = 512): Bitmap? {
+    return try {
+        val writer = MultiFormatWriter()
+        val bitMatrix: BitMatrix = writer.encode(conteudo, BarcodeFormat.QR_CODE, tamanho, tamanho)
+        val bitmap = Bitmap.createBitmap(tamanho, tamanho, Bitmap.Config.ARGB_8888)
+        for (x in 0 until tamanho) {
+            for (y in 0 until tamanho) {
+                bitmap[x, y] = if (bitMatrix.get(x, y)) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            }
+        }
+        bitmap
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun compartilharLink(context: Context, url: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, "Acesse meu álbum no Álbum Seguro: $url")
+        putExtra(Intent.EXTRA_SUBJECT, "Álbum Seguro")
+    }
+    val chooser = Intent.createChooser(intent, "Compartilhar link")
+    context.startActivity(chooser)
+}
+
+private fun isVideoMidia(midia: MidiaDTO): Boolean {
+    if (midia.tipo.equals("video", ignoreCase = true)) return true
+    val url = midia.url.lowercase(Locale.ROOT)
+    return url.contains(".mp4") || url.contains(".mov") || url.contains(".avi") ||
+            url.contains(".mkv") || url.contains(".webm") || url.contains(".m4v")
+}
 
 private fun downloadMidia(context: Context, url: String, id: String) {
     val request = DownloadManager.Request(Uri.parse(url))
@@ -51,7 +93,7 @@ private fun downloadMidia(context: Context, url: String, id: String) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ChildDetailScreen(navController: NavController, childId: String?) {
+fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicial: String? = null) {
     if (childId == null) { LaunchedEffect(Unit) { navController.popBackStack() }; return }
     val context = LocalContext.current
     val childrenVm: ChildrenViewModel = viewModel(key = "children_$childId",
@@ -90,6 +132,8 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
     var novaDescricao by remember { mutableStateOf("") }
     var showTokenDialog by remember { mutableStateOf(false) }
     var diasToken by remember { mutableStateOf("30") }
+    var showQrDialog by remember { mutableStateOf(false) }
+    var qrUrl by remember { mutableStateOf<String?>(null) }
     var showDeleteChildDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var editNome by remember { mutableStateOf("") }
@@ -283,6 +327,56 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
         )
     }
 
+    // Diálogo de QR Code
+    if (showQrDialog && !qrUrl.isNullOrBlank()) {
+        val bitmap = remember(qrUrl) { gerarQRCodeBitmap(qrUrl!!, 512) }
+        AlertDialog(
+            onDismissRequest = { showQrDialog = false },
+            icon = { Icon(Icons.Default.QrCode, null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("QR Code do Álbum") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    if (bitmap != null) {
+                        androidx.compose.foundation.Image(
+                            painter = BitmapPainter(bitmap.asImageBitmap()),
+                            contentDescription = "QR Code",
+                            modifier = Modifier.size(256.dp)
+                        )
+                    } else {
+                        Text("Erro ao gerar QR Code")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Escaneie com o app ou compartilhe o link abaixo:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = qrUrl!!,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQrDialog = false }) { Text("Fechar") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    compartilharLink(context, qrUrl!!)
+                }) { Text("Compartilhar") }
+            }
+        )
+    }
+
     if (showEditDialog) {
         var editDataExibicao by remember(editData) { mutableStateOf(formatarDataParaExibicao(editData)) }
         val calEdit = Calendar.getInstance()
@@ -337,7 +431,7 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(criancaAtual?.nome ?: "Detalhes", style = MaterialTheme.typography.titleLarge) },
+                title = { Text(criancaAtual?.nome ?: nomeInicial ?: "Detalhes", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
@@ -410,7 +504,9 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
                     Spacer(Modifier.height(12.dp))
                     when (tokenState) {
                         is ChildrenViewModel.TokenState.Success -> {
-                            val token = (tokenState as ChildrenViewModel.TokenState.Success).token
+                            val tokenSuccess = tokenState as ChildrenViewModel.TokenState.Success
+                            val token = tokenSuccess.token
+                            val childAlbumUrl = tokenSuccess.childAlbumUrl
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -439,6 +535,61 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
+                                }
+                            }
+                            // Se tiver URL completa do álbum, mostra opções de QR, copiar link e compartilhar
+                            if (!childAlbumUrl.isNullOrBlank()) {
+                                Spacer(Modifier.height(12.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = childAlbumUrl,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            qrUrl = childAlbumUrl
+                                            showQrDialog = true
+                                        },
+                                        shape = RoundedCornerShape(50.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Default.QrCode, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Ver QR", style = MaterialTheme.typography.labelLarge)
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(childAlbumUrl))
+                                        },
+                                        shape = RoundedCornerShape(50.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Default.Link, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Copiar", style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = { compartilharLink(context, childAlbumUrl) },
+                                    shape = RoundedCornerShape(50.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.Share, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Compartilhar link", style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }
@@ -546,8 +697,8 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
                                         .clip(RoundedCornerShape(8.dp))
                                         .combinedClickable(
                                             onClick = {
-                                            if (midia.tipo == "video") {
-                                                val encoded = java.net.URLEncoder.encode(midia.url, "UTF-8")
+                                            if (isVideoMidia(midia)) {
+                                                val encoded = android.util.Base64.encodeToString(midia.url.toByteArray(Charsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
                                                 navController.navigate("video_player/$encoded")
                                             } else {
                                                 midiaVisualizada = midia
@@ -556,13 +707,22 @@ fun ChildDetailScreen(navController: NavController, childId: String?) {
                                             onLongClick = { midiaOpcoes = midia }
                                         )
                                 ) {
-                                    AsyncImage(
-                                        model = midia.url,
-                                        contentDescription = midia.descricao,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                    )
-                                    if (midia.tipo == "video") {
+                                    val isVideo = isVideoMidia(midia)
+                                    if (isVideo && midia.thumbnailUrl.isNullOrBlank()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(androidx.compose.ui.graphics.Color.Black)
+                                        )
+                                    } else {
+                                        AsyncImage(
+                                            model = midia.thumbnailUrl ?: midia.url,
+                                            contentDescription = midia.descricao,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                        )
+                                    }
+                                    if (isVideo) {
                                         Icon(
                                             Icons.Default.PlayCircle,
                                             contentDescription = null,

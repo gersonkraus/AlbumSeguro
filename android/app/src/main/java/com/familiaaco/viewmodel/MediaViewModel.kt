@@ -25,11 +25,36 @@ class MediaViewModel(context: Context) : ViewModel() {
     }
 
     fun uploadMidia(criancaId: String, file: File, descricao: String, dataMomento: String) {
+        uploadMidias(criancaId, listOf(file), descricao, dataMomento)
+    }
+
+    fun uploadMidias(criancaId: String, files: List<File>, descricao: String, dataMomento: String) {
         viewModelScope.launch {
-            _mediaState.value = MediaState.Loading
-            mediaRepository.uploadMidia(criancaId, file, descricao, dataMomento)
-                .onSuccess { listarMidia(criancaId) }
-                .onFailure { _mediaState.value = MediaState.Error(it.message ?: "Erro no upload") }
+            if (files.isEmpty()) {
+                _mediaState.value = MediaState.Error("Nenhum arquivo selecionado")
+                return@launch
+            }
+
+            val total = files.size
+            var successCount = 0
+            val failedFiles = mutableListOf<String>()
+
+            files.forEachIndexed { index, file ->
+                _mediaState.value = MediaState.Uploading(index + 1, total, file.name)
+                val result = mediaRepository.uploadMidia(criancaId, file, descricao, dataMomento)
+                if (result.isFailure) {
+                    failedFiles.add(file.name)
+                } else {
+                    successCount++
+                }
+            }
+
+            _mediaState.value = MediaState.UploadSummary(
+                successCount = successCount,
+                failCount = failedFiles.size,
+                total = total,
+                failedFileNames = failedFiles
+            )
         }
     }
 
@@ -54,6 +79,13 @@ class MediaViewModel(context: Context) : ViewModel() {
     sealed class MediaState {
         object Idle : MediaState()
         object Loading : MediaState()
+        data class Uploading(val current: Int, val total: Int, val fileName: String) : MediaState()
+        data class UploadSummary(
+            val successCount: Int,
+            val failCount: Int,
+            val total: Int,
+            val failedFileNames: List<String>
+        ) : MediaState()
         data class Success(val midias: List<MidiaDTO>) : MediaState()
         data class Error(val message: String) : MediaState()
     }

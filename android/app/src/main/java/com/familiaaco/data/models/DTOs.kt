@@ -105,7 +105,8 @@ data class GerarTokenRequest(
 
 data class TokenResponse(
     val message: String,
-    val token: String
+    val token: String,
+    val childAlbumUrl: String?
 ) : Serializable
 
 // Admin
@@ -116,6 +117,20 @@ data class EditarAdminRequest(
 
 data class ListaAdminsResponse(
     val admins: List<UsuarioDTO>
+) : Serializable
+
+data class AppConfigDTO(
+    val _id: String,
+    val childAlbumBaseUrl: String
+) : Serializable
+
+data class AppConfigResponse(
+    val message: String? = null,
+    val config: AppConfigDTO
+) : Serializable
+
+data class AtualizarAppConfigRequest(
+    val childAlbumBaseUrl: String
 ) : Serializable
 
 // Foto de perfil

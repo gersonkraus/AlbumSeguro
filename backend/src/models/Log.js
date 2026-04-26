@@ -9,7 +9,7 @@ const logSchema = new mongoose.Schema({
     type: String,
     enum: ['LOGIN', 'LOGOUT', 'CRIAR_CRIANCA', 'EDITAR_CRIANCA', 'DELETAR_CRIANCA',
            'UPLOAD_MIDIA', 'DELETAR_MIDIA', 'CRIAR_ADMIN', 'EDITAR_ADMIN',
-           'ACESSAR_ALBUM', 'GERAR_TOKEN'],
+           'ACESSAR_ALBUM', 'GERAR_TOKEN', 'EDITAR_CONFIG_APP'],
     required: true,
   },
   recursoId: mongoose.Schema.Types.ObjectId,

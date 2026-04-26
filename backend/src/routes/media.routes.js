@@ -39,9 +39,14 @@ router.post('/:criancaId/upload', authMiddleware, adminMiddleware, upload.single
       `criancas/${criancaId}/${Date.now()}_${req.file.originalname}`
     );
 
+    const mimeType = (req.file.mimetype || '').toLowerCase();
+    const nomeArquivo = (req.file.originalname || '').toLowerCase();
+    const isVideoMime = mimeType.startsWith('video/');
+    const isVideoByExt = /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(nomeArquivo);
+
     const novaMidia = new Media({
       criancaId,
-      tipo: req.file.mimetype.includes('video') ? 'video' : 'foto',
+      tipo: (isVideoMime || isVideoByExt) ? 'video' : 'foto',
       url: urlDownload,
       descricao,
       dataMomento: dataMomento || new Date(),

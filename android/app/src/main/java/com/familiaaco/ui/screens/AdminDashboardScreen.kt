@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.familiaaco.data.local.TokenManager
 import com.familiaaco.repository.AuthRepository
 import kotlinx.coroutines.launch
 
@@ -19,6 +20,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AdminDashboardScreen(navController: NavController) {
     val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val isSuperAdmin = remember { tokenManager.getUserRole() == "super_admin" }
     val scope = rememberCoroutineScope()
     Scaffold(
         topBar = {
@@ -75,6 +78,14 @@ fun AdminDashboardScreen(navController: NavController) {
                 titulo = "Logs do Sistema",
                 descricao = "Ver histórico de ações"
             ) { navController.navigate("logs") }
+
+            if (isSuperAdmin) {
+                AdminMenuCard(
+                    icon = Icons.Default.Settings,
+                    titulo = "Configuração do App",
+                    descricao = "Definir URL base dos links infantis"
+                ) { navController.navigate("app_config") }
+            }
         }
     }
 }

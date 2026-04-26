@@ -18,7 +18,7 @@ class ChildAlbumViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             _albumState.value = AlbumState.Loading
             mediaRepository.getAlbumByToken(token)
-                .onSuccess { _albumState.value = AlbumState.Success(it.midias) }
+                .onSuccess { _albumState.value = AlbumState.Success(token, it.midias) }
                 .onFailure { _albumState.value = AlbumState.Error(it.message ?: "Erro ao carregar álbum") }
         }
     }
@@ -26,7 +26,7 @@ class ChildAlbumViewModel(context: Context) : ViewModel() {
     sealed class AlbumState {
         object Idle : AlbumState()
         object Loading : AlbumState()
-        data class Success(val midias: List<MidiaDTO>) : AlbumState()
+        data class Success(val token: String, val midias: List<MidiaDTO>) : AlbumState()
         data class Error(val message: String) : AlbumState()
     }
 }

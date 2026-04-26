@@ -4,6 +4,7 @@ import android.content.Context
 import com.familiaaco.data.models.CriarCriancaRequest
 import com.familiaaco.data.models.CriancaDTO
 import com.familiaaco.data.models.EditarCriancaRequest
+import com.familiaaco.data.models.TokenResponse
 import com.familiaaco.network.ApiClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -88,11 +89,11 @@ class ChildrenRepository(private val context: Context) {
         }
     }
 
-    suspend fun gerarToken(id: String, diasValidade: Int = 30): Result<String> {
+    suspend fun gerarToken(id: String, diasValidade: Int = 30): Result<TokenResponse> {
         return try {
             val response = apiService.gerarToken(id, com.familiaaco.data.models.GerarTokenRequest(diasValidade))
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!.token)
+                Result.success(response.body()!!)
             } else {
                 Result.failure(Exception("Erro ${response.code()}: Falha ao gerar token"))
             }
