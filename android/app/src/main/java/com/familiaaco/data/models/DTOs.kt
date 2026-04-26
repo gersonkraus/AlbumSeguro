@@ -19,6 +19,7 @@ data class RegistroRequest(
 data class AuthResponse(
     val message: String,
     val token: String,
+    val refreshToken: String? = null,
     val usuario: UsuarioDTO
 ) : Serializable
 
@@ -93,7 +94,15 @@ data class ListaMidiaResponse(
     val midias: List<MidiaDTO>
 ) : Serializable
 
+data class EditarMidiaRequest(
+    val descricao: String?
+) : Serializable
+
 // Token
+data class GerarTokenRequest(
+    val diasValidade: Int = 30
+) : Serializable
+
 data class TokenResponse(
     val message: String,
     val token: String
@@ -107,6 +116,41 @@ data class EditarAdminRequest(
 
 data class ListaAdminsResponse(
     val admins: List<UsuarioDTO>
+) : Serializable
+
+// Foto de perfil
+data class FotoPerfilResponse(
+    val message: String,
+    val fotoPerfil: String
+) : Serializable
+
+// Perfil
+data class AtualizarPerfilRequest(
+    val nome: String,
+    val telefone: String? = null
+) : Serializable
+
+data class AlterarSenhaRequest(
+    val senhaAtual: String,
+    val novaSenha: String
+) : Serializable
+
+// Logs
+data class UsuarioSimples(
+    val nome: String,
+    val email: String
+) : Serializable
+
+data class LogDTO(
+    val _id: String,
+    val acao: String,
+    val status: String,
+    val usuarioId: UsuarioSimples?,
+    val dataCriacao: String
+) : Serializable
+
+data class ListaLogsResponse(
+    val logs: List<LogDTO>
 ) : Serializable
 
 // Album (public child view)

@@ -1,6 +1,7 @@
 package com.familiaaco.repository
 
 import android.content.Context
+import android.webkit.MimeTypeMap
 import com.familiaaco.data.models.AlbumResponse
 import com.familiaaco.data.models.MidiaDTO
 import com.familiaaco.network.ApiClient
@@ -20,7 +21,9 @@ class MediaRepository(private val context: Context) {
         dataMomento: String
     ): Result<MidiaDTO> {
         return try {
-            val requestBody = file.asRequestBody("*/*".toMediaType())
+            val ext = file.extension.lowercase()
+            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+            val requestBody = file.asRequestBody(mime.toMediaType())
             val filePart = MultipartBody.Part.createFormData("file", file.name, requestBody)
             val descricaoPart = descricao.toRequestBody("text/plain".toMediaType())
             val dataPart = dataMomento.toRequestBody("text/plain".toMediaType())
@@ -28,20 +31,33 @@ class MediaRepository(private val context: Context) {
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.midia)
             } else {
-                Result.failure(Exception("Falha ao fazer upload"))
+                Result.failure(Exception("Erro ${response.code()}: Falha ao fazer upload"))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun listarMidia(criancaId: String): Result<List<MidiaDTO>> {
+    suspend fun listarMidia(criancaId: String, tipo: String? = null, ordem: String? = null): Result<List<MidiaDTO>> {
         return try {
-            val response = apiService.listarMidia(criancaId)
+            val response = apiService.listarMidia(criancaId, tipo, ordem)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.midias)
             } else {
-                Result.failure(Exception("Falha ao listar mídia"))
+                Result.failure(Exception("Erro ${response.code()}: Falha ao listar mídia"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun editarMidia(midiaId: String, descricao: String): Result<MidiaDTO> {
+        return try {
+            val response = apiService.editarMidia(midiaId, com.familiaaco.data.models.EditarMidiaRequest(descricao))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.midia)
+            } else {
+                Result.failure(Exception("Erro ${response.code()}: Falha ao editar mídia"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -52,7 +68,7 @@ class MediaRepository(private val context: Context) {
         return try {
             val response = apiService.deletarMidia(midiaId)
             if (response.isSuccessful) Result.success(Unit)
-            else Result.failure(Exception("Falha ao deletar mídia"))
+            else Result.failure(Exception("Erro ${response.code()}: Falha ao deletar mídia"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -64,7 +80,7 @@ class MediaRepository(private val context: Context) {
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Álbum não encontrado"))
+                Result.failure(Exception("Erro ${response.code()}: Álbum não encontrado"))
             }
         } catch (e: Exception) {
             Result.failure(e)

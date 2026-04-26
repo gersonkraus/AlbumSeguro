@@ -27,6 +27,12 @@ fun NavGraph(navController: NavHostController) {
         }
         composable("media_upload") { MediaUploadScreen(navController, criancaId = null) }
         composable("admin_list") { AdminListScreen(navController) }
+        composable("profile") { ProfileScreen(navController) }
+        composable("logs") { LogsScreen(navController) }
+        composable("video_player/{url}") { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url")
+            VideoPlayerScreen(navController, url?.let { java.net.URLDecoder.decode(it, "UTF-8") })
+        }
 
         // Child flow
         composable("child_token") { ChildTokenInputScreen(navController) }

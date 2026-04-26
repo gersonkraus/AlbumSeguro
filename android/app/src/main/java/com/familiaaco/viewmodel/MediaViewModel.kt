@@ -15,10 +15,10 @@ class MediaViewModel(context: Context) : ViewModel() {
     private val _mediaState = MutableStateFlow<MediaState>(MediaState.Idle)
     val mediaState: StateFlow<MediaState> = _mediaState
 
-    fun listarMidia(criancaId: String) {
+    fun listarMidia(criancaId: String, tipo: String? = null, ordem: String? = null) {
         viewModelScope.launch {
             _mediaState.value = MediaState.Loading
-            mediaRepository.listarMidia(criancaId)
+            mediaRepository.listarMidia(criancaId, tipo, ordem)
                 .onSuccess { _mediaState.value = MediaState.Success(it) }
                 .onFailure { _mediaState.value = MediaState.Error(it.message ?: "Erro") }
         }
@@ -33,8 +33,18 @@ class MediaViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun editarMidia(midiaId: String, descricao: String, criancaId: String) {
+        viewModelScope.launch {
+            _mediaState.value = MediaState.Loading
+            mediaRepository.editarMidia(midiaId, descricao)
+                .onSuccess { listarMidia(criancaId) }
+                .onFailure { _mediaState.value = MediaState.Error(it.message ?: "Erro ao editar") }
+        }
+    }
+
     fun deletarMidia(midiaId: String, criancaId: String) {
         viewModelScope.launch {
+            _mediaState.value = MediaState.Loading
             mediaRepository.deletarMidia(midiaId)
                 .onSuccess { listarMidia(criancaId) }
                 .onFailure { _mediaState.value = MediaState.Error(it.message ?: "Erro ao deletar") }

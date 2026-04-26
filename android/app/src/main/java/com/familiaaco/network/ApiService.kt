@@ -17,6 +17,12 @@ interface ApiService {
     @GET("auth/perfil")
     suspend fun getPerfil(): Response<UsuarioResponse>
 
+    @PUT("auth/perfil")
+    suspend fun atualizarPerfil(@Body request: AtualizarPerfilRequest): Response<UsuarioResponse>
+
+    @PUT("auth/senha")
+    suspend fun alterarSenha(@Body request: AlterarSenhaRequest): Response<Unit>
+
     @POST("auth/logout")
     suspend fun logout(): Response<Unit>
 
@@ -39,8 +45,18 @@ interface ApiService {
     @DELETE("children/{id}")
     suspend fun deletarCrianca(@Path("id") id: String): Response<Unit>
 
+    @Multipart
+    @POST("children/{id}/foto")
+    suspend fun uploadFotoPerfil(
+        @Path("id") id: String,
+        @Part foto: MultipartBody.Part
+    ): Response<FotoPerfilResponse>
+
     @POST("children/{id}/gerar-token")
-    suspend fun gerarToken(@Path("id") id: String): Response<TokenResponse>
+    suspend fun gerarToken(
+        @Path("id") id: String,
+        @Body request: GerarTokenRequest = GerarTokenRequest()
+    ): Response<TokenResponse>
 
     // Mídia
     @Multipart
@@ -53,10 +69,20 @@ interface ApiService {
     ): Response<MidiaResponse>
 
     @GET("media/{criancaId}")
-    suspend fun listarMidia(@Path("criancaId") criancaId: String): Response<ListaMidiaResponse>
+    suspend fun listarMidia(
+        @Path("criancaId") criancaId: String,
+        @Query("tipo") tipo: String? = null,
+        @Query("ordem") ordem: String? = null
+    ): Response<ListaMidiaResponse>
 
     @DELETE("media/{midiaId}")
     suspend fun deletarMidia(@Path("midiaId") midiaId: String): Response<Unit>
+
+    @PUT("media/{midiaId}")
+    suspend fun editarMidia(
+        @Path("midiaId") midiaId: String,
+        @Body request: EditarMidiaRequest
+    ): Response<MidiaResponse>
 
     // Admin
     @GET("admin/")
@@ -70,6 +96,10 @@ interface ApiService {
 
     @DELETE("admin/{id}")
     suspend fun deletarAdmin(@Path("id") id: String): Response<Unit>
+
+    // Logs
+    @GET("logs/")
+    suspend fun listarLogs(): Response<ListaLogsResponse>
 
     // Album (public — no auth needed)
     @GET("album/{token}")

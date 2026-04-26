@@ -25,6 +25,14 @@ class TokenManager(context: Context) {
         return encryptedSharedPreferences.getString("auth_token", null)
     }
 
+    fun saveRefreshToken(token: String) {
+        encryptedSharedPreferences.edit().putString("refresh_token", token).apply()
+    }
+
+    fun getRefreshToken(): String? {
+        return encryptedSharedPreferences.getString("refresh_token", null)
+    }
+
     fun saveUserRole(role: String) {
         encryptedSharedPreferences.edit().putString("user_role", role).apply()
     }

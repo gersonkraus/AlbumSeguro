@@ -2,7 +2,7 @@ package com.familiaaco.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +24,7 @@ fun ChildTokenInputScreen(navController: NavController) {
     ) {
         Text("Bem-vindo!", style = MaterialTheme.typography.headlineLarge, color = PrimaryColor, textAlign = TextAlign.Center)
         Spacer(Modifier.height(32.dp))
-        Icon(Icons.Default.QrCode, null, modifier = Modifier.size(80.dp), tint = PrimaryColor)
+        Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(80.dp), tint = PrimaryColor)
         Spacer(Modifier.height(32.dp))
         OutlinedTextField(
             value = token,

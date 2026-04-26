@@ -16,6 +16,13 @@ router.post('/registrar', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      await Log.create({
+        usuarioId: null,
+        acao: 'CRIAR_ADMIN',
+        status: 'erro',
+        detalhes: 'Validação falhou: ' + JSON.stringify(errors.array()),
+        ipAddress: req.ip,
+      });
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -84,6 +91,13 @@ router.post('/login', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      await Log.create({
+        usuarioId: null,
+        acao: 'LOGIN',
+        status: 'erro',
+        detalhes: 'Validação falhou: ' + JSON.stringify(errors.array()),
+        ipAddress: req.ip,
+      });
       return res.status(400).json({ errors: errors.array() });
     }
 

@@ -14,13 +14,13 @@ class AuthRepository(private val context: Context) {
         return try {
             val response = apiService.login(LoginRequest(email, senha))
             if (response.isSuccessful && response.body() != null) {
-                val token = response.body()!!.token
-                val role = response.body()!!.usuario.role
-                tokenManager.saveToken(token)
-                tokenManager.saveUserRole(role)
-                Result.success(token)
+                val body = response.body()!!
+                tokenManager.saveToken(body.token)
+                tokenManager.saveUserRole(body.usuario.role)
+                body.refreshToken?.let { tokenManager.saveRefreshToken(it) }
+                Result.success(body.token)
             } else {
-                Result.failure(Exception("Login falhou"))
+                Result.failure(Exception("Erro ${response.code()}: Login falhou"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -33,7 +33,7 @@ class AuthRepository(private val context: Context) {
             if (response.isSuccessful && response.body() != null) {
                 Result.success("Admin registrado com sucesso")
             } else {
-                Result.failure(Exception("Falha ao registrar"))
+                Result.failure(Exception("Erro ${response.code()}: Falha ao registrar"))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -18,6 +18,13 @@ router.post('/', authMiddleware, adminMiddleware, [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      await Log.create({
+        usuarioId: req.user._id,
+        acao: 'CRIAR_CRIANCA',
+        status: 'erro',
+        detalhes: 'Validação falhou: ' + JSON.stringify(errors.array()),
+        ipAddress: req.ip,
+      });
       return res.status(400).json({ errors: errors.array() });
     }
 

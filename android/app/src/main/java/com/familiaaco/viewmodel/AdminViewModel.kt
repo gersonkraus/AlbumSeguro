@@ -14,6 +14,21 @@ class AdminViewModel(context: Context) : ViewModel() {
     private val _adminState = MutableStateFlow<AdminState>(AdminState.Idle)
     val adminState: StateFlow<AdminState> = _adminState
 
+    fun criarAdmin(nome: String, email: String, senha: String, onResult: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            _adminState.value = AdminState.Loading
+            adminRepository.criarAdmin(nome, email, senha)
+                .onSuccess {
+                    listarAdmins()
+                    onResult?.invoke(true)
+                }
+                .onFailure {
+                    _adminState.value = AdminState.Error(it.message ?: "Erro ao criar admin")
+                    onResult?.invoke(false)
+                }
+        }
+    }
+
     fun listarAdmins() {
         viewModelScope.launch {
             _adminState.value = AdminState.Loading
@@ -25,6 +40,7 @@ class AdminViewModel(context: Context) : ViewModel() {
 
     fun editarAdmin(id: String, permissoes: List<String>?, ativo: Boolean?) {
         viewModelScope.launch {
+            _adminState.value = AdminState.Loading
             adminRepository.editarAdmin(id, permissoes, ativo)
                 .onSuccess { listarAdmins() }
                 .onFailure { _adminState.value = AdminState.Error(it.message ?: "Erro") }
