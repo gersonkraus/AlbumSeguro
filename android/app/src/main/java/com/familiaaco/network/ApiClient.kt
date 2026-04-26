@@ -9,7 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-    private const val BASE_URL = "http://10.0.2.2:3000/api/"
+    internal const val BASE_URL = "https://albumseguro-api.onrender.com/api/"
 
     fun getApiService(context: Context): ApiService {
         val tokenManager = TokenManager(context)
