@@ -6,9 +6,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -22,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -51,16 +53,13 @@ private fun isVideoMidia(midia: MidiaDTO): Boolean {
 }
 
 @Composable
-private fun PhotoPage(midia: MidiaDTO, onToggleOverlay: () -> Unit) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 5f)
-        if (scale > 1f) offset += panChange
-    }
-    LaunchedEffect(scale) {
-        if (scale <= 1f) offset = Offset.Zero
-    }
+private fun PhotoPage(
+    midia: MidiaDTO,
+    scale: Float,
+    offset: Offset,
+    onScaleChange: (Float) -> Unit,
+    onOffsetChange: (Offset) -> Unit
+) {
     AsyncImage(
         model = midia.url,
         contentDescription = midia.descricao,
@@ -73,19 +72,31 @@ private fun PhotoPage(midia: MidiaDTO, onToggleOverlay: () -> Unit) {
                 translationX = offset.x,
                 translationY = offset.y
             )
-            .transformable(state = transformState)
-            .pointerInput(scale) {
-                detectTapGestures(
-                    onTap = { onToggleOverlay() },
-                    onDoubleTap = {
-                        if (scale > 1f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            scale = 2.5f
+            // Gesture handler customizado: só consome eventos quando multi-touch
+            // ou single-touch com zoom ativo — nunca bloqueia o swipe do pager
+            .pointerInput(scale, offset) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var currentScale = scale
+                    var currentOffset = offset
+                    var multiTouchStarted = false
+                    do {
+                        val event = awaitPointerEvent()
+                        val touchCount = event.changes.count { it.pressed }
+                        if (touchCount >= 2) multiTouchStarted = true
+                        if (multiTouchStarted || (touchCount == 1 && currentScale > 1f)) {
+                            val zoomChange = if (touchCount >= 2) event.calculateZoom() else 1f
+                            val panChange = event.calculatePan()
+                            currentScale = (currentScale * zoomChange).coerceIn(1f, 5f)
+                            currentOffset = if (currentScale > 1f) currentOffset + panChange
+                                           else Offset.Zero
+                            onScaleChange(currentScale)
+                            onOffsetChange(currentOffset)
+                            event.changes.forEach { it.consume() }
                         }
-                    }
-                )
+                        // single-touch com scale==1: não consome → pager recebe o swipe
+                    } while (event.changes.any { it.pressed })
+                }
             }
     )
 }
@@ -133,6 +144,14 @@ fun MediaViewerScreen(navController: NavController) {
     var overlayVisible by remember { mutableStateOf(true) }
     val pagerState = rememberPagerState(initialPage = startIndex) { midias.size }
 
+    // Estado de zoom compartilhado — reseta ao trocar de página
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    LaunchedEffect(pagerState.currentPage) {
+        scale = 1f
+        offset = Offset.Zero
+    }
+
     LaunchedEffect(overlayVisible, pagerState.currentPage) {
         if (overlayVisible) {
             delay(3000)
@@ -144,17 +163,37 @@ fun MediaViewerScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            // Tap simples = alternar overlay | Tap duplo = zoom 1x↔2.5x
+            .pointerInput(pagerState.currentPage, scale) {
+                detectTapGestures(
+                    onTap = { overlayVisible = !overlayVisible },
+                    onDoubleTap = {
+                        if (!isVideoMidia(midias[pagerState.currentPage])) {
+                            if (scale > 1f) { scale = 1f; offset = Offset.Zero }
+                            else scale = 2.5f
+                        }
+                    }
+                )
+            }
     ) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            key = { midias[it]._id }
+            key = { midias[it]._id },
+            // Desabilita swipe do pager quando foto está com zoom ativo
+            userScrollEnabled = scale <= 1f
         ) { page ->
             val midia = midias[page]
             if (isVideoMidia(midia)) {
                 VideoPage(midia = midia, isCurrentPage = page == pagerState.currentPage)
             } else {
-                PhotoPage(midia = midia, onToggleOverlay = { overlayVisible = !overlayVisible })
+                PhotoPage(
+                    midia = midia,
+                    scale = scale,
+                    offset = offset,
+                    onScaleChange = { if (page == pagerState.currentPage) scale = it },
+                    onOffsetChange = { if (page == pagerState.currentPage) offset = it }
+                )
             }
         }
 
@@ -168,11 +207,7 @@ fun MediaViewerScreen(navController: NavController) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
-                        )
-                    )
+                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)))
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
@@ -202,21 +237,13 @@ fun MediaViewerScreen(navController: NavController) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                        )
-                    )
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Column {
                     if (!currentMidia.descricao.isNullOrBlank()) {
-                        Text(
-                            text = currentMidia.descricao,
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Text(text = currentMidia.descricao, color = Color.White, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(4.dp))
                     }
                     Text(
