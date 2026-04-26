@@ -6,10 +6,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -23,6 +22,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -51,7 +51,7 @@ private fun isVideoMidia(midia: MidiaDTO): Boolean {
 }
 
 @Composable
-private fun PhotoPage(midia: MidiaDTO) {
+private fun PhotoPage(midia: MidiaDTO, onToggleOverlay: () -> Unit) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -74,6 +74,19 @@ private fun PhotoPage(midia: MidiaDTO) {
                 translationY = offset.y
             )
             .transformable(state = transformState)
+            .pointerInput(scale) {
+                detectTapGestures(
+                    onTap = { onToggleOverlay() },
+                    onDoubleTap = {
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2.5f
+                        }
+                    }
+                )
+            }
     )
 }
 
@@ -131,10 +144,6 @@ fun MediaViewerScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { overlayVisible = !overlayVisible }
     ) {
         HorizontalPager(
             state = pagerState,
@@ -145,7 +154,7 @@ fun MediaViewerScreen(navController: NavController) {
             if (isVideoMidia(midia)) {
                 VideoPage(midia = midia, isCurrentPage = page == pagerState.currentPage)
             } else {
-                PhotoPage(midia = midia)
+                PhotoPage(midia = midia, onToggleOverlay = { overlayVisible = !overlayVisible })
             }
         }
 

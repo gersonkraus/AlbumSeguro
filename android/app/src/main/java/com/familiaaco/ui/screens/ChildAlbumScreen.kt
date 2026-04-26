@@ -1,10 +1,10 @@
 package com.familiaaco.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
@@ -64,9 +64,17 @@ fun ChildAlbumScreen(navController: NavController, token: String) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) }
             Text("Meu Álbum", style = MaterialTheme.typography.headlineSmall, color = PrimaryColor, modifier = Modifier.weight(1f))
+            IconButton(onClick = {
+                tokenManager.clearChildToken()
+                navController.navigate("login") {
+                    popUpTo("child_token") { inclusive = false }
+                }
+            }) {
+                Icon(Icons.Default.AdminPanelSettings, contentDescription = "Área administrativa", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         when (albumState) {
             is ChildAlbumViewModel.AlbumState.Loading ->
@@ -132,7 +140,7 @@ fun ChildAlbumScreen(navController: NavController, token: String) {
 @Composable
 fun MidiaGridItem(midia: MidiaDTO, onClick: () -> Unit) {
     val isVideo = isVideoMidiaAlbum(midia)
-    Card(modifier = Modifier.aspectRatio(1f).clickable { onClick() }) {
+    Card(onClick = onClick, modifier = Modifier.aspectRatio(1f)) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (isVideo && midia.thumbnailUrl.isNullOrBlank()) {
                 Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
