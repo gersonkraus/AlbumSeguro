@@ -83,14 +83,16 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
             }
     }
 
+    var wasPlayingBeforePause = false
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
-                Lifecycle.Event.ON_RESUME -> exoPlayer.play()
-                Lifecycle.Event.ON_STOP -> {
-                    exoPlayer.stop()
-                    exoPlayer.release()
+                Lifecycle.Event.ON_PAUSE -> {
+                    wasPlayingBeforePause = exoPlayer.isPlaying
+                    exoPlayer.pause()
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    if (wasPlayingBeforePause) exoPlayer.play()
                 }
                 else -> {}
             }
@@ -130,7 +132,7 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
             if (hasError) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.Default.ErrorOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(48.dp)
