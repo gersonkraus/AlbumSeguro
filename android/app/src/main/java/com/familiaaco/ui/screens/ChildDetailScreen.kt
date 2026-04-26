@@ -37,6 +37,8 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.core.graphics.set
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.snapshotFlow
 import com.familiaaco.data.models.MidiaDTO
 import com.familiaaco.ui.utils.formatarDataParaExibicao
 import com.familiaaco.viewmodel.ChildrenViewModel
@@ -106,6 +108,9 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
         })
     val tokenState by childrenVm.tokenState.collectAsState()
     val mediaState by mediaVm.mediaState.collectAsState()
+    val hasMore by mediaVm.hasMore.collectAsState()
+    val isLoadingMore by mediaVm.isLoadingMore.collectAsState()
+    val gridState = rememberLazyGridState()
     val criancaAtual by childrenVm.criancaAtual.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     var fotoPerfil by remember { mutableStateOf<String?>(null) }
@@ -126,7 +131,6 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
     var filtroOrdem by remember { mutableStateOf("desc") }
     var showOrdemMenu by remember { mutableStateOf(false) }
     var midiaParaExcluir by remember { mutableStateOf<com.familiaaco.data.models.MidiaDTO?>(null) }
-    var midiaVisualizada by remember { mutableStateOf<com.familiaaco.data.models.MidiaDTO?>(null) }
     var midiaOpcoes by remember { mutableStateOf<com.familiaaco.data.models.MidiaDTO?>(null) }
     var midiaEditDesc by remember { mutableStateOf<com.familiaaco.data.models.MidiaDTO?>(null) }
     var novaDescricao by remember { mutableStateOf("") }
@@ -154,32 +158,18 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
         mediaVm.listarMidia(childId, filtroTipo.takeIf { it != "todos" }, filtroOrdem)
     }
 
-    // Visualizador de mídia
-    if (midiaVisualizada != null) {
-        val m = midiaVisualizada!!
-        AlertDialog(
-            onDismissRequest = { midiaVisualizada = null },
-            title = null,
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    AsyncImage(
-                        model = m.url,
-                        contentDescription = m.descricao,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .collect { lastIndex ->
+                val total = gridState.layoutInfo.totalItemsCount
+                if (lastIndex >= total - 6 && hasMore && !isLoadingMore) {
+                    mediaVm.carregarMaisMidia(
+                        childId,
+                        filtroTipo.takeIf { it != "todos" },
+                        filtroOrdem
                     )
-                    if (!m.descricao.isNullOrBlank()) {
-                        Spacer(Modifier.height(12.dp))
-                        Text(m.descricao, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(formatarDataParaExibicao(m.dataMomento), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { midiaVisualizada = null }) { Text("Fechar") }
             }
-        )
     }
 
     // Menu de opções (long-press)
@@ -685,6 +675,7 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
                     } else {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(3),
+                            state = gridState,
                             modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -697,13 +688,11 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
                                         .clip(RoundedCornerShape(8.dp))
                                         .combinedClickable(
                                             onClick = {
-                                            if (isVideoMidia(midia)) {
-                                                val encoded = android.util.Base64.encodeToString(midia.url.toByteArray(Charsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
-                                                navController.navigate("video_player/$encoded")
-                                            } else {
-                                                midiaVisualizada = midia
-                                            }
-                                        },
+                                                val idx = midias.indexOf(midia).coerceAtLeast(0)
+                                                MediaViewerArgs.midias = midias
+                                                MediaViewerArgs.startIndex = idx
+                                                navController.navigate("media_viewer")
+                                            },
                                             onLongClick = { midiaOpcoes = midia }
                                         )
                                 ) {
@@ -712,7 +701,7 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(androidx.compose.ui.graphics.Color.Black)
+                                                .background(androidx.compose.ui.graphics.Color.DarkGray)
                                         )
                                     } else {
                                         AsyncImage(
@@ -729,6 +718,16 @@ fun ChildDetailScreen(navController: NavController, childId: String?, nomeInicia
                                             tint = androidx.compose.ui.graphics.Color.White,
                                             modifier = Modifier.size(36.dp).align(Alignment.Center)
                                         )
+                                    }
+                                }
+                            }
+                            if (isLoadingMore) {
+                                item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                                    Box(
+                                        Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
                                     }
                                 }
                             }

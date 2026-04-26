@@ -43,6 +43,9 @@ fun NavGraph(navController: NavHostController) {
         composable("app_config") { AppConfigScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
         composable("logs") { LogsScreen(navController) }
+        composable("media_viewer") {
+            MediaViewerScreen(navController)
+        }
         composable("video_player/{url}") { backStackEntry ->
             val encoded = backStackEntry.arguments?.getString("url")
             val url = encoded?.let {

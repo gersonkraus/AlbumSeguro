@@ -1,6 +1,8 @@
 package com.familiaaco.ui.screens
 
 import android.app.DatePickerDialog
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -225,8 +227,11 @@ fun MediaUploadScreen(navController: NavController, criancaId: String? = null) {
             onClick = {
                 if (criancaId != null && selectedFileUris.isNotEmpty()) {
                     val files = selectedFileUris.mapNotNull { uriToFile(context, it) }
+                    val thumbnails = selectedFileUris.map { uri ->
+                        if (isVideoUri(context, uri)) gerarThumbnailParaUri(context, uri) else null
+                    }
                     if (files.isNotEmpty()) {
-                        viewModel.uploadMidias(criancaId, files, descricao, dataMomentoApi)
+                        viewModel.uploadMidias(criancaId, files, thumbnails, descricao, dataMomentoApi)
                     }
                 }
             },
@@ -302,6 +307,29 @@ fun MediaUploadScreen(navController: NavController, criancaId: String? = null) {
                 }
             }
         )
+    }
+}
+
+private fun isVideoUri(context: android.content.Context, uri: Uri): Boolean {
+    val mime = context.contentResolver.getType(uri) ?: return false
+    return mime.startsWith("video/")
+}
+
+private fun gerarThumbnailParaUri(context: android.content.Context, uri: Uri): File? {
+    return try {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(context, uri)
+        val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+        retriever.release()
+        bitmap?.let {
+            val thumbFile = File(context.cacheDir, "thumb_${System.currentTimeMillis()}.jpg")
+            thumbFile.outputStream().use { out ->
+                it.compress(Bitmap.CompressFormat.JPEG, 80, out)
+            }
+            thumbFile
+        }
+    } catch (_: Exception) {
+        null
     }
 }
 

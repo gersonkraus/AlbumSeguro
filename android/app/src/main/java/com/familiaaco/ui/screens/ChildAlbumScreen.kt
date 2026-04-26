@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,7 +26,7 @@ import com.familiaaco.viewmodel.ChildAlbumViewModel
 import android.util.Base64
 import java.util.Locale
 
-private fun isVideoMidia(midia: MidiaDTO): Boolean {
+private fun isVideoMidiaAlbum(midia: MidiaDTO): Boolean {
     if (midia.tipo.equals("video", ignoreCase = true)) return true
     val url = midia.url.lowercase(Locale.ROOT)
     return url.contains(".mp4") || url.contains(".mov") || url.contains(".avi") ||
@@ -40,6 +41,9 @@ fun ChildAlbumScreen(navController: NavController, token: String) {
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ChildAlbumViewModel(context) as T
     })
     val albumState by viewModel.albumState.collectAsState()
+    val hasMore by viewModel.hasMore.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+    val gridState = rememberLazyGridState()
 
     LaunchedEffect(token) { viewModel.carregarAlbum(token) }
     LaunchedEffect(albumState) {
@@ -47,6 +51,16 @@ fun ChildAlbumScreen(navController: NavController, token: String) {
         if (success != null) {
             tokenManager.saveChildToken(success.token)
         }
+    }
+
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .collect { lastIndex ->
+                val total = gridState.layoutInfo.totalItemsCount
+                if (lastIndex >= total - 6 && hasMore && !isLoadingMore) {
+                    viewModel.carregarMais()
+                }
+            }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -64,17 +78,30 @@ fun ChildAlbumScreen(navController: NavController, token: String) {
                         Text("Nenhuma foto ou vídeo ainda.", style = MaterialTheme.typography.bodyLarge)
                     }
                 } else {
-                    LazyVerticalGrid(columns = GridCells.Fixed(2),
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        state = gridState,
                         modifier = Modifier.fillMaxSize().padding(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         items(midias) { midia ->
                             MidiaGridItem(midia = midia, onClick = {
-                                if (isVideoMidia(midia)) {
-                                    val encoded = Base64.encodeToString(midia.url.toByteArray(Charsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
-                                    navController.navigate("video_player/$encoded")
-                                }
+                                val idx = midias.indexOf(midia).coerceAtLeast(0)
+                                MediaViewerArgs.midias = midias
+                                MediaViewerArgs.startIndex = idx
+                                navController.navigate("media_viewer")
                             })
+                        }
+                        if (isLoadingMore) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -104,15 +131,19 @@ fun ChildAlbumScreen(navController: NavController, token: String) {
 
 @Composable
 fun MidiaGridItem(midia: MidiaDTO, onClick: () -> Unit) {
-    val isVideo = isVideoMidia(midia)
+    val isVideo = isVideoMidiaAlbum(midia)
     Card(modifier = Modifier.aspectRatio(1f).clickable { onClick() }) {
         Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = midia.thumbnailUrl ?: midia.url,
-                contentDescription = midia.descricao,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            if (isVideo && midia.thumbnailUrl.isNullOrBlank()) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
+            } else {
+                AsyncImage(
+                    model = midia.thumbnailUrl ?: midia.url,
+                    contentDescription = midia.descricao,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
             if (isVideo) {
                 Box(
                     modifier = Modifier
