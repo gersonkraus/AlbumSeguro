@@ -132,7 +132,7 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
             if (hasError) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.ErrorOutline,
+                        imageVector = Icons.Default.Error,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(48.dp)
