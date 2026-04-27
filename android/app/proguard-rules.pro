@@ -44,6 +44,11 @@
 # ApiService — manter interface e métodos (Retrofit usa reflexão)
 -keep interface com.familiaaco.network.ApiService { *; }
 
+# Media3 — preservar classes de UI para evitar ClassCastException na inflação de layout
+-keep class androidx.media3.** { *; }
+-keep interface androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
 # Desativar todas as otimizações R8 (resolve ClassCastException em Gson + Retrofit)
 # O shrinking (remoção de código não usado) continua ativo
 -dontoptimize
