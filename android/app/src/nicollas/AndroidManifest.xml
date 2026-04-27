@@ -7,12 +7,11 @@
     <application
         android:label="Meu Álbum">
 
-        <!-- Remove MainActivity como launcher neste flavor -->
+        <!-- Substitui completamente a MainActivity — sem intent-filter de launcher -->
         <activity
             android:name=".MainActivity"
-            android:exported="false">
-            <intent-filter tools:node="removeAll" />
-        </activity>
+            android:exported="false"
+            tools:node="replace" />
 
         <!-- NiCollasActivity é o launcher exclusivo deste flavor -->
         <activity
