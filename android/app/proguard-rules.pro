@@ -1,4 +1,33 @@
 # Add project specific ProGuard rules here.
--keep class com.familiaaco.data.models.** { *; }
+
+# Preservar assinaturas de tipo genérico (obrigatório para Gson + Retrofit)
 -keepattributes Signature
 -keepattributes *Annotation*
+-keepattributes Exceptions
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
+# Gson — preservar TypeToken e subclasses (evita Class cannot be cast to ParameterizedType)
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+-keep class com.google.gson.** { *; }
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Modelos de dados usados pelo Gson
+-keep class com.familiaaco.data.models.** { *; }
+
+# Retrofit — preservar interfaces e métodos anotados
+-keep,allowobfuscation,allowshrinking interface * {
+    @retrofit2.http.* <methods>;
+}
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}
+
+# OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
