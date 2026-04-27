@@ -3,3 +3,6 @@ node_modules/
 *.log
 coverage/
 .DS_Store
+
+# APK uploads (arquivos grandes, não versionar)
+uploads/apk/*.apk
