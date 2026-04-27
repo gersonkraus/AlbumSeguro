@@ -109,8 +109,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // ExoPlayer (Media3)
-    implementation("androidx.media3:media3-exoplayer:1.3.0")
-    implementation("androidx.media3:media3-ui:1.3.0")
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
 
     // QR Code + Camera
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
