@@ -2,6 +2,7 @@ package com.familiaaco.ui.screens
 
 import android.net.Uri
 import android.util.Log
+import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -22,8 +23,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,12 +43,7 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
         ExoPlayer.Builder(context)
             .setLoadControl(
                 androidx.media3.exoplayer.DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(
-                        15000,
-                        50000,
-                        2500,
-                        5000
-                    )
+                    .setBufferDurationsMs(15000, 50000, 2500, 5000)
                     .build()
             )
             .build()
@@ -66,9 +60,7 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
                     }
 
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        if (isPlaying) {
-                            hasError = false
-                        }
+                        if (isPlaying) hasError = false
                     }
                 })
 
@@ -164,12 +156,8 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
             } else {
                 AndroidView(
                     factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            player = exoPlayer
-                            useController = true
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            keepScreenOn = true
-                            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                        SurfaceView(ctx).also { sv ->
+                            exoPlayer.setVideoSurfaceView(sv)
                         }
                     },
                     modifier = Modifier.fillMaxSize()
