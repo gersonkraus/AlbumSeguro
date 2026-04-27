@@ -44,7 +44,7 @@ android {
             applicationId = "com.familiaaco.nicollas"
             versionCode = 1
             versionName = "1.0.0"
-            buildConfigField("String", "CHILD_TOKEN", "\"PLACEHOLDER_TOKEN\"")
+            buildConfigField("String", "CHILD_TOKEN", "\"6AC7EAA656291FF50FDAC232F7A07CA1\"")
         }
     }
 
