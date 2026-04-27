@@ -44,6 +44,6 @@
 # ApiService — manter interface e métodos (Retrofit usa reflexão)
 -keep interface com.familiaaco.network.ApiService { *; }
 
-# Desativar otimizações R8 que causam inlining do TypeToken
-# (mantém shrinking mas impede merging de classes e inlining)
--optimizations !class/merging/**,!code/simplification/**,!field/**,!method/inlining/**
+# Desativar todas as otimizações R8 (resolve ClassCastException em Gson + Retrofit)
+# O shrinking (remoção de código não usado) continua ativo
+-dontoptimize
