@@ -27,27 +27,14 @@ import com.familiaaco.ui.screens.MediaViewerScreen
 import com.familiaaco.ui.screens.NiCollasAlbumScreen
 import com.familiaaco.ui.screens.VideoPlayerScreen
 import com.familiaaco.ui.theme.FamiliaAcolhedoraTheme
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
+import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
-
-private interface NiCollasVersionApi {
-    @GET("public/app-version")
-    suspend fun getAppVersion(): AppVersionResponse
-}
-
-private data class AppVersionResponse(
-    @SerializedName("versionCode") val versionCode: Int,
-    @SerializedName("versionName") val versionName: String,
-    @SerializedName("downloadUrl") val downloadUrl: String,
-)
 
 class NiCollasActivity : ComponentActivity() {
 
@@ -92,20 +79,19 @@ class NiCollasActivity : ComponentActivity() {
         lifecycleScope.launch {
             val hasUpdate = withContext(Dispatchers.IO) {
                 try {
-                    val api = Retrofit.Builder()
-                        .baseUrl(ApiClient.BASE_URL)
-                        .addConverterFactory(GsonConverterFactory.create())
-                        .client(
-                            OkHttpClient.Builder()
-                                .connectTimeout(10, TimeUnit.SECONDS)
-                                .readTimeout(10, TimeUnit.SECONDS)
-                                .build()
-                        )
+                    val client = OkHttpClient.Builder()
+                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .readTimeout(10, TimeUnit.SECONDS)
                         .build()
-                        .create(NiCollasVersionApi::class.java)
-                    val response = api.getAppVersion()
-                    if (response.versionCode > BuildConfig.VERSION_CODE) {
-                        startDownload(response.downloadUrl)
+                    val request = Request.Builder()
+                        .url("${ApiClient.BASE_URL}public/app-version")
+                        .build()
+                    val body = client.newCall(request).execute().use { it.body?.string() }
+                    val json = JSONObject(body ?: "{}")
+                    val remoteVersion = json.optInt("versionCode", 0)
+                    val downloadUrl = json.optString("downloadUrl", "")
+                    if (remoteVersion > BuildConfig.VERSION_CODE && downloadUrl.isNotEmpty()) {
+                        startDownload(downloadUrl)
                         true
                     } else {
                         false
