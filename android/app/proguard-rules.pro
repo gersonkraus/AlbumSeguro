@@ -31,3 +31,19 @@
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
+
+# Kotlin coroutines + Retrofit suspend functions
+-keepclassmembernames class kotlinx.** {
+    volatile <fields>;
+}
+-keep class kotlin.coroutines.** { *; }
+-keep class kotlinx.coroutines.** { *; }
+-keepattributes RuntimeVisibleAnnotations
+-keepattributes RuntimeInvisibleAnnotations
+
+# ApiService — manter interface e métodos (Retrofit usa reflexão)
+-keep interface com.familiaaco.network.ApiService { *; }
+
+# Desativar otimizações R8 que causam inlining do TypeToken
+# (mantém shrinking mas impede merging de classes e inlining)
+-optimizations !class/merging/**,!code/simplification/**,!field/**,!method/inlining/**
