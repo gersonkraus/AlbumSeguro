@@ -87,7 +87,8 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
             }
     }
 
-    var wasPlayingBeforePause = false
+    var wasPlayingBeforePause by remember { mutableStateOf(false) }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -102,8 +103,13 @@ fun VideoPlayerScreen(navController: NavController, videoUrl: String?) {
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    DisposableEffect(exoPlayer) {
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
             exoPlayer.release()
         }
     }
