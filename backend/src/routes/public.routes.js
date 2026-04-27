@@ -2,6 +2,9 @@ const express = require('express');
 const Child = require('../models/Child');
 const Media = require('../models/Media');
 const Log = require('../models/Log');
+const AppUpdate = require('../models/AppUpdate');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
 
@@ -86,6 +89,49 @@ router.get('/album/:token', async (req, res) => {
       },
       midias,
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Retorna a versão mais recente do app Nicollas
+ * GET /api/public/app-version
+ */
+router.get('/app-version', async (req, res) => {
+  try {
+    const latest = await AppUpdate.findOne().sort({ createdAt: -1 });
+    if (!latest) {
+      return res.status(404).json({ error: 'Nenhuma versão disponível' });
+    }
+    const downloadUrl = `${req.protocol}://${req.get('host')}/api/public/apk/download`;
+    res.json({
+      versionCode: latest.versionCode,
+      versionName: latest.versionName,
+      downloadUrl,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Serve o APK mais recente para download
+ * GET /api/public/apk/download
+ */
+router.get('/apk/download', async (req, res) => {
+  try {
+    const latest = await AppUpdate.findOne().sort({ createdAt: -1 });
+    if (!latest) {
+      return res.status(404).json({ error: 'Nenhum APK disponível' });
+    }
+    const apkPath = path.join(__dirname, '../../uploads/apk', latest.apkFileName);
+    if (!fs.existsSync(apkPath)) {
+      return res.status(404).json({ error: 'Arquivo APK não encontrado no servidor' });
+    }
+    res.setHeader('Content-Disposition', 'attachment; filename="app-nicollas.apk"');
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.sendFile(path.resolve(apkPath));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
