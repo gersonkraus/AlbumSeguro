@@ -1,8 +1,37 @@
 const express = require('express');
 const User = require('../models/User');
 const AppConfig = require('../models/AppConfig');
-const { authMiddleware, superAdminMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware, superAdminMiddleware } = require('../middleware/auth');
 const Log = require('../models/Log');
+const AppUpdate = require('../models/AppUpdate');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const apkStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/apk');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'app-nicollas.apk');
+  },
+});
+const uploadApk = multer({
+  storage: apkStorage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype === 'application/vnd.android.package-archive' ||
+      file.originalname.endsWith('.apk')
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas arquivos .apk são permitidos'));
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -142,5 +171,57 @@ router.delete('/:id', authMiddleware, superAdminMiddleware, async (req, res) => 
     res.status(500).json({ error: error.message });
   }
 });
+
+/**
+ * Upload de nova versão do APK do Nicollas
+ * POST /api/admin/app-update
+ */
+router.post(
+  '/app-update',
+  authMiddleware,
+  adminMiddleware,
+  uploadApk.single('apk'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Arquivo APK é obrigatório' });
+      }
+      const versionCode = parseInt(req.body.versionCode, 10);
+      const versionName = req.body.versionName?.trim();
+      const notes = req.body.notes?.trim() || '';
+
+      if (!versionCode || versionCode < 1) {
+        return res.status(400).json({ error: 'versionCode deve ser um número inteiro positivo' });
+      }
+      if (!versionName) {
+        return res.status(400).json({ error: 'versionName é obrigatório' });
+      }
+
+      const appUpdate = await AppUpdate.create({
+        versionCode,
+        versionName,
+        apkFileName: req.file.filename,
+        notes,
+      });
+
+      await Log.create({
+        usuarioId: req.user._id,
+        acao: 'UPLOAD_MIDIA',
+        recursoId: appUpdate._id,
+        status: 'sucesso',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
+      res.status(201).json({
+        message: 'APK enviado com sucesso',
+        versionCode: appUpdate.versionCode,
+        versionName: appUpdate.versionName,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
 
 module.exports = router;
