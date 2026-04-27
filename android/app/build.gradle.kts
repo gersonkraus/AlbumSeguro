@@ -33,6 +33,21 @@ android {
         }
     }
 
+    flavorDimensions += "target"
+    productFlavors {
+        create("full") {
+            dimension = "target"
+            applicationId = "com.familiaaco"
+        }
+        create("nicollas") {
+            dimension = "target"
+            applicationId = "com.familiaaco.nicollas"
+            versionCode = 1
+            versionName = "1.0.0"
+            buildConfigField("String", "CHILD_TOKEN", "\"PLACEHOLDER_TOKEN\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -44,6 +59,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
