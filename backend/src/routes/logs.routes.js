@@ -21,8 +21,18 @@ router.get('/', authMiddleware, superAdminMiddleware, async (req, res) => {
 
     const total = await Log.countDocuments(filtros);
 
+    const toBRT = (logs) => logs.map(log => {
+      const obj = log.toObject();
+      if (obj.dataCriacao) {
+        const d = new Date(obj.dataCriacao);
+        d.setHours(d.getHours() - 3);
+        obj.dataCriacao = d.toISOString().replace('Z', '');
+      }
+      return obj;
+    });
+
     res.json({
-      logs,
+      logs: toBRT(logs),
       paginacao: {
         total,
         pagina: pagina * 1,
